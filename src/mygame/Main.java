@@ -38,10 +38,9 @@ public class Main extends SimpleApplication implements ActionListener {
     private Vector3f camDir = new Vector3f();
     private Vector3f camLeft = new Vector3f();
     private RigidBodyControl boxPhy;
-    
+
     public static void main(String[] args) {
         Main app = new Main();
-
         app.start();
     }
 
@@ -52,7 +51,7 @@ public class Main extends SimpleApplication implements ActionListener {
          */
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
-        
+
         // We re-use the flyby camera for rotation, while positioning is handled by physics
         viewPort.setBackgroundColor(new ColorRGBA(0.7f, 0.8f, 1f, 1f));
         flyCam.setMoveSpeed(100);
@@ -191,9 +190,11 @@ public class Main extends SimpleApplication implements ActionListener {
         player.setFallSpeed(30);
         player.setGravity(30);
         player.setPhysicsLocation(new Vector3f(-5, 10, 0));
-        
-        
-        /** Make brick physical with a mass > 0.0f. */
+
+
+        /**
+         * Make brick physical with a mass > 0.0f.
+         */
         boxPhy = new RigidBodyControl(0f);
         geom1.addControl(boxPhy);
         bulletAppState.getPhysicsSpace().add(boxPhy);
@@ -239,15 +240,13 @@ public class Main extends SimpleApplication implements ActionListener {
         boxPhy = new RigidBodyControl(0f);
         geom15.addControl(boxPhy);
         bulletAppState.getPhysicsSpace().add(boxPhy);
-        
+
         // We attach the scene and the player to the rootnode and the physics space,
         // to make them appear in the game world.
         rootNode.attachChild(terrainGeo);
         bulletAppState.getPhysicsSpace().add(landscape);
         bulletAppState.getPhysicsSpace().add(player);
     }
-    
-    
 
     private void setUpLight() {
         // We add light so we see the scene
@@ -270,12 +269,10 @@ public class Main extends SimpleApplication implements ActionListener {
         inputManager.addMapping("Right", new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping("Up", new KeyTrigger(KeyInput.KEY_W));
         inputManager.addMapping("Down", new KeyTrigger(KeyInput.KEY_S));
-        inputManager.addMapping("Jump", new KeyTrigger(KeyInput.KEY_SPACE));
         inputManager.addListener(this, "Left");
         inputManager.addListener(this, "Right");
         inputManager.addListener(this, "Up");
         inputManager.addListener(this, "Down");
-        inputManager.addListener(this, "Jump");
     }
 
     /**
@@ -304,6 +301,16 @@ public class Main extends SimpleApplication implements ActionListener {
         }
         player.setWalkDirection(walkDirection);
         cam.setLocation(player.getPhysicsLocation());
+        fixOrientation();
+    }
+
+    public void fixOrientation() {
+        if (cam.getDirection().getY() > 0.75) {
+            cam.lookAtDirection(new Vector3f(cam.getDirection().getX(), 0.75f, cam.getDirection().getZ()), new Vector3f(cam.getUp().getX(), 1, cam.getUp().getZ()));
+        }
+        if (cam.getDirection().getY() < -0.75) {
+            cam.lookAtDirection(new Vector3f(cam.getDirection().getX(), -0.75f, cam.getDirection().getZ()), new Vector3f(cam.getUp().getX(), 1, cam.getUp().getZ()));
+        }
     }
 
     @Override
@@ -324,10 +331,6 @@ public class Main extends SimpleApplication implements ActionListener {
             up = isPressed;
         } else if (binding.equals("Down")) {
             down = isPressed;
-        } else if (binding.equals("Jump")) {
-            if (isPressed) {
-                player.jump();
-            }
         }
     }
 }
