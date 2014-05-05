@@ -37,7 +37,7 @@ public class Main extends SimpleApplication implements ActionListener {
     //They here to avoid instanciating new vectors on each frame
     private Vector3f camDir = new Vector3f();
     private Vector3f camLeft = new Vector3f();
-    private RigidBodyControl    brick_phy;
+    private RigidBodyControl boxPhy;
     
     public static void main(String[] args) {
         Main app = new Main();
@@ -190,18 +190,64 @@ public class Main extends SimpleApplication implements ActionListener {
         player.setJumpSpeed(20);
         player.setFallSpeed(30);
         player.setGravity(30);
-        player.setPhysicsLocation(new Vector3f(0, 10, 0));
+        player.setPhysicsLocation(new Vector3f(-5, 10, 0));
+        
         
         /** Make brick physical with a mass > 0.0f. */
-        brick_phy = new RigidBodyControl(2f);
-        geom1.addControl(brick_phy);
+        boxPhy = new RigidBodyControl(0f);
+        geom1.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom2.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom3.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom4.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom5.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom6.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom7.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom8.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom9.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom10.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom11.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom12.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom13.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom14.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        boxPhy = new RigidBodyControl(0f);
+        geom15.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        
         // We attach the scene and the player to the rootnode and the physics space,
         // to make them appear in the game world.
         rootNode.attachChild(terrainGeo);
         bulletAppState.getPhysicsSpace().add(landscape);
         bulletAppState.getPhysicsSpace().add(player);
-        bulletAppState.getPhysicsSpace().add(brick_phy);
     }
+    
+    
 
     private void setUpLight() {
         // We add light so we see the scene
