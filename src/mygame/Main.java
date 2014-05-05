@@ -37,7 +37,8 @@ public class Main extends SimpleApplication implements ActionListener {
     //They here to avoid instanciating new vectors on each frame
     private Vector3f camDir = new Vector3f();
     private Vector3f camLeft = new Vector3f();
-
+    private RigidBodyControl    brick_phy;
+    
     public static void main(String[] args) {
         Main app = new Main();
 
@@ -190,12 +191,16 @@ public class Main extends SimpleApplication implements ActionListener {
         player.setFallSpeed(30);
         player.setGravity(30);
         player.setPhysicsLocation(new Vector3f(0, 10, 0));
-
+        
+        /** Make brick physical with a mass > 0.0f. */
+        brick_phy = new RigidBodyControl(2f);
+        geom1.addControl(brick_phy);
         // We attach the scene and the player to the rootnode and the physics space,
         // to make them appear in the game world.
         rootNode.attachChild(terrainGeo);
         bulletAppState.getPhysicsSpace().add(landscape);
         bulletAppState.getPhysicsSpace().add(player);
+        bulletAppState.getPhysicsSpace().add(brick_phy);
     }
 
     private void setUpLight() {
