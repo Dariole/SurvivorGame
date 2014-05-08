@@ -3,6 +3,7 @@ package mygame;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.collision.shapes.CollisionShape;
+import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.control.BetterCharacterControl;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.util.CollisionShapeFactory;
@@ -23,6 +24,8 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.control.CameraControl;
 import com.jme3.scene.shape.Box;
+import com.jme3.scene.shape.Sphere;
+import com.jme3.system.Timer;
 
 /**
  * test
@@ -40,8 +43,12 @@ public class Main extends SimpleApplication implements ActionListener {
     private Vector3f walkDirection = new Vector3f(0, 0, 0);
     private Vector3f viewDirection = new Vector3f(0, 0, 1);
     private boolean rotateLeft = false, rotateRight = false,
-            forward = false, backward = false;
+            forward = false, backward = false, shoot = false;
     private float speed = 20;
+    private RigidBodyControl bulletPhy;
+    //private Material bulletMat;
+    private static final Sphere ballMesh = new Sphere(32, 32, 0.25f, true, false);
+    Timer myTimer = getTimer();
 
     public static void main(String[] args) {
         Main app = new Main();
@@ -59,7 +66,7 @@ public class Main extends SimpleApplication implements ActionListener {
 
         setUpKeys();
         setUpLight();
-        
+
         playerNode = new Node("the player");
         playerNode.setLocalTranslation(new Vector3f(-10, 6, -10));
         rootNode.attachChild(playerNode);
@@ -77,7 +84,7 @@ public class Main extends SimpleApplication implements ActionListener {
         playerNode.attachChild(camNode);
         camNode.setEnabled(true);
         flyCam.setEnabled(false);
-        
+
         createLevel();
         bulletAppState.getPhysicsSpace().add(player);
     }
@@ -100,16 +107,20 @@ public class Main extends SimpleApplication implements ActionListener {
      */
     private void setUpKeys() {
         inputManager.addMapping("Forward",
-                new KeyTrigger(KeyInput.KEY_W));
+                new KeyTrigger(KeyInput.KEY_UP));
         inputManager.addMapping("Back",
-                new KeyTrigger(KeyInput.KEY_S));
+                new KeyTrigger(KeyInput.KEY_DOWN));
         inputManager.addMapping("Rotate Left",
-                new KeyTrigger(KeyInput.KEY_A));
+                new KeyTrigger(KeyInput.KEY_LEFT));
         inputManager.addMapping("Rotate Right",
-                new KeyTrigger(KeyInput.KEY_D));
+                new KeyTrigger(KeyInput.KEY_RIGHT));
+        inputManager.addMapping("Shoot",
+                new KeyTrigger(KeyInput.KEY_LCONTROL));
+        inputManager.addListener(this, "Shoot");
         inputManager.addListener(this, "Rotate Left",
                 "Rotate Right");
         inputManager.addListener(this, "Forward", "Back");
+
 
         inputManager.setCursorVisible(true);
     }
@@ -126,8 +137,6 @@ public class Main extends SimpleApplication implements ActionListener {
         // Get current forward and left vectors of the playerNode:
         Vector3f modelForwardDir =
                 playerNode.getWorldRotation().mult(Vector3f.UNIT_Z);
-        Vector3f modelLeftDir =
-                playerNode.getWorldRotation().mult(Vector3f.UNIT_X);
         // Determine the change in direction
         walkDirection.set(0, 0, 0);
         if (forward) {
@@ -164,10 +173,35 @@ public class Main extends SimpleApplication implements ActionListener {
             forward = isPressed;
         } else if (binding.equals("Back")) {
             backward = isPressed;
-        } 
+        } else if (binding.equals("Shoot") && !isPressed) {
+            if (myTimer.getTimeInSeconds() > 5) {
+                myTimer.reset();
+                shoot();
+            }
+        }
     }
     
-    private void createLevel(){
+    public void shoot() {
+        Material bulletMat = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+        bulletMat.setTexture("DiffuseMap", assetManager.loadTexture("Textures/Metal.png"));
+        bulletMat.setTexture("NormalMap", assetManager.loadTexture("Textures/Metal.png"));
+        bulletMat.setFloat("Shininess", 5f);
+        Geometry bulletGeo = new Geometry("bullet", ballMesh);
+        bulletGeo.setMaterial(bulletMat);
+        bulletGeo.setLocalTranslation(cam.getLocation().add(cam.getDirection().mult(3)));
+        rootNode.attachChild(bulletGeo);
+        
+        SphereCollisionShape sceneShape = new SphereCollisionShape(0.25f);
+        bulletPhy = new RigidBodyControl(sceneShape, 10f);
+        bulletPhy.applyImpulse(cam.getDirection().mult(300), cam.getDirection());
+        bulletGeo.addControl(bulletPhy);
+        bulletAppState.getPhysicsSpace().add(bulletPhy);
+        bulletPhy.setGravity(new Vector3f(0f, 0f, 0f));
+        bulletAppState.getPhysicsSpace().addCollisionListener(new PhysicControl());
+        
+    }
+
+    private void createLevel() {
         // Outter walls:
         Box wall1 = new Box(Vector3f.ZERO, 0.1f, 4, 50);
         Box wall2 = new Box(Vector3f.ZERO, 0.1f, 4, 50);
@@ -179,7 +213,7 @@ public class Main extends SimpleApplication implements ActionListener {
         Geometry geom4 = new Geometry("Box", wall4);
         Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         mat1.setColor("Color", ColorRGBA.Gray);
-        mat1.setTexture("ColorMap",assetManager.loadTexture("Interface/Wall.jpg"));
+        mat1.setTexture("ColorMap", assetManager.loadTexture("Interface/Wall.jpg"));
         geom1.setMaterial(mat1);
         geom2.setMaterial(mat1);
         geom3.setMaterial(mat1);
