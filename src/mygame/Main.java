@@ -1,12 +1,17 @@
 package mygame;
 
 import com.jme3.app.SimpleApplication;
+import com.jme3.audio.AudioNode;
 import com.jme3.bullet.BulletAppState;
+import com.jme3.bullet.collision.PhysicsCollisionEvent;
+import com.jme3.bullet.collision.PhysicsCollisionListener;
 import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.control.BetterCharacterControl;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.util.CollisionShapeFactory;
+import com.jme3.collision.CollisionResults;
+import com.jme3.font.BitmapText;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
@@ -16,6 +21,7 @@ import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
+import com.jme3.math.Ray;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.CameraNode;
@@ -32,12 +38,15 @@ import com.jme3.system.Timer;
  *
  * @author normenhansen
  */
-public class Main extends SimpleApplication implements ActionListener {
+public class Main extends SimpleApplication implements ActionListener, PhysicsCollisionListener {
 
+    private Geometry bulletGeo;
+    private Geometry enemyGeo;
     private CameraNode camNode;
     private Node playerNode;
     private BulletAppState bulletAppState;
     private RigidBodyControl landscape;
+    private RigidBodyControl enemy;
     private BetterCharacterControl player;
     private RigidBodyControl boxPhy;
     private Vector3f walkDirection = new Vector3f(0, 0, 0);
@@ -47,9 +56,15 @@ public class Main extends SimpleApplication implements ActionListener {
     private float speed = 20;
     private RigidBodyControl bulletPhy;
     //private Material bulletMat;
-    private static final Sphere ballMesh = new Sphere(32, 32, 0.25f, true, false);
+    private static final Sphere ballMesh = new Sphere(32, 32, 0.10f, true, false);
     Timer myTimer = getTimer();
-
+    private int score = 0;
+    private BitmapText scoreText;
+    AudioNode audioGun;
+    AudioNode audioPain;
+    Geometry labDoorGeo;
+    private Node doors;
+    
     public static void main(String[] args) {
         Main app = new Main();
         app.start();
@@ -60,13 +75,32 @@ public class Main extends SimpleApplication implements ActionListener {
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
 
+        // Remove mouse
+        org.lwjgl.input.Mouse.setGrabbed(true);
+
+        // Add crosshair:
+        initCrosshairs();
+
         // We re-use the flyby camera for rotation, while positioning is handled by physics
         viewPort.setBackgroundColor(new ColorRGBA(0.7f, 0.8f, 1f, 1f));
         flyCam.setEnabled(false);
 
+        // Remove stats
+        setDisplayStatView(false);
+        setDisplayFps(false);
         setUpKeys();
         setUpLight();
 
+        // Adding score to GUI
+        showScore();
+
+        // Sound init
+        initGunSound();
+        initPainSound();
+        
+        // init door node
+        doors = new Node("Doors");
+        rootNode.attachChild(doors);
         playerNode = new Node("the player");
         playerNode.setLocalTranslation(new Vector3f(-10, 6, -10));
         rootNode.attachChild(playerNode);
@@ -116,10 +150,13 @@ public class Main extends SimpleApplication implements ActionListener {
                 new KeyTrigger(KeyInput.KEY_RIGHT));
         inputManager.addMapping("Shoot",
                 new KeyTrigger(KeyInput.KEY_LCONTROL));
+        inputManager.addMapping("Use", 
+                new KeyTrigger(KeyInput.KEY_SPACE));
         inputManager.addListener(this, "Shoot");
         inputManager.addListener(this, "Rotate Left",
                 "Rotate Right");
         inputManager.addListener(this, "Forward", "Back");
+        inputManager.addListener(this, "Use");
 
 
         inputManager.setCursorVisible(true);
@@ -157,6 +194,8 @@ public class Main extends SimpleApplication implements ActionListener {
             rotateR.multLocal(viewDirection);
         }
         player.setViewDirection(viewDirection); // turn!
+
+
     }
 
     @Override
@@ -173,6 +212,24 @@ public class Main extends SimpleApplication implements ActionListener {
             forward = isPressed;
         } else if (binding.equals("Back")) {
             backward = isPressed;
+        } else if (binding.equals("Use") && !isPressed) {
+            System.out.println("Use virker");
+            CollisionResults results = new CollisionResults();
+            Ray ray = new Ray(cam.getLocation(), cam.getDirection());
+            doors.collideWith(ray, results);
+            for (int i = 0; i < results.size(); i++) {
+                System.out.println("use1");
+                float dist = results.getCollision(i).getDistance();
+                Vector3f pt = results.getCollision(i).getContactPoint();
+                String hit = results.getCollision(i).getGeometry().getName();
+                if (dist <= 10.0f){
+                    System.out.println("use2");
+                    if (hit.equals("labDoor")){
+                        System.out.println("use3");
+                        openDoor();
+                    }
+                }
+            }
         } else if (binding.equals("Shoot") && !isPressed) {
             if (myTimer.getTimeInSeconds() > 5) {
                 myTimer.reset();
@@ -180,25 +237,116 @@ public class Main extends SimpleApplication implements ActionListener {
             }
         }
     }
-    
+
+    public void spawnEnemy() {
+        Box enemyBox = new Box(Vector3f.ZERO, 1, 3, 1);
+        enemyGeo = new Geometry("enemy", enemyBox);
+        Material enemyMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        enemyMat.setColor("Color", ColorRGBA.Red);
+        enemyGeo.setMaterial(enemyMat);
+        Vector3f enemySpawnPosition = new Vector3f(-30, 3, -30);
+        enemyGeo.setLocalTranslation(enemySpawnPosition);
+        rootNode.attachChild(enemyGeo);
+        enemy = new RigidBodyControl(0);
+        enemyGeo.addControl(enemy);
+        bulletAppState.getPhysicsSpace().add(enemy);
+    }
+
     public void shoot() {
         Material bulletMat = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         bulletMat.setTexture("DiffuseMap", assetManager.loadTexture("Textures/Metal.png"));
         bulletMat.setTexture("NormalMap", assetManager.loadTexture("Textures/Metal.png"));
         bulletMat.setFloat("Shininess", 5f);
-        Geometry bulletGeo = new Geometry("bullet", ballMesh);
+        bulletGeo = new Geometry("bullet", ballMesh);
         bulletGeo.setMaterial(bulletMat);
         bulletGeo.setLocalTranslation(cam.getLocation().add(cam.getDirection().mult(3)));
         rootNode.attachChild(bulletGeo);
-        
+        audioGun.playInstance();
         SphereCollisionShape sceneShape = new SphereCollisionShape(0.25f);
         bulletPhy = new RigidBodyControl(sceneShape, 10f);
-        bulletPhy.applyImpulse(cam.getDirection().mult(300), cam.getDirection());
+        bulletPhy.applyImpulse(cam.getDirection().mult(400), cam.getDirection());
         bulletGeo.addControl(bulletPhy);
         bulletAppState.getPhysicsSpace().add(bulletPhy);
         bulletPhy.setGravity(new Vector3f(0f, 0f, 0f));
-        bulletAppState.getPhysicsSpace().addCollisionListener(new PhysicControl());
-        
+        bulletAppState.getPhysicsSpace().addCollisionListener(this);
+    }
+
+    private void initGunSound(){
+    audioGun = new AudioNode(assetManager, "Sounds/gun_sound.wav");
+    audioGun.setPositional(false);
+    audioGun.setLooping(false);
+    audioGun.setVolume(2);
+    rootNode.attachChild(audioGun);
+    }
+    private void initPainSound(){
+    audioPain = new AudioNode(assetManager, "Sounds/pain_sound.wav");
+    audioPain.setPositional(false);
+    audioPain.setLooping(false);
+    audioPain.setVolume(2);
+    rootNode.attachChild(audioPain);
+    }
+    
+    
+    private void showScore() {
+        scoreText = new BitmapText(guiFont, false);
+        scoreText.setSize(guiFont.getCharSet().getRenderedSize() * 2);
+        scoreText.setText("Score: " + score);
+        scoreText.setLocalTranslation( // center
+                (settings.getWidth() - scoreText.getLineWidth() / 2) - 100, (settings.getHeight() + scoreText.getLineHeight() / 2) - 25, 0);
+        guiNode.attachChild(scoreText);
+    }
+
+    private void openDoor(){
+        labDoorGeo.setLocalTranslation(new Vector3f(-60.0f, 12.0f, -25.0f));
+        //rootNode.detachChildNamed("labDoor");
+        bulletAppState.getPhysicsSpace().remove(labDoorGeo);
+    }
+    
+    public void collision(PhysicsCollisionEvent event) {
+        if ("enemy".equals(event.getNodeA().getName()) || "enemy".equals(event.getNodeB().getName())) {
+            if ("bullet".equals(event.getNodeA().getName()) || "bullet".equals(event.getNodeB().getName())) {
+                if ("bullet".equals(event.getNodeB().getName())) {
+                    if (rootNode.getChild("bullet") != null) {
+                        rootNode.detachChildNamed("bullet");
+                        rootNode.detachChildNamed("enemy");
+                        audioPain.playInstance();
+                        score++;
+                        System.out.println(score);
+                        scoreText.setText("Score: " + score);
+                    }
+                }
+            }
+        }
+
+        if ("Box".equals(event.getNodeA().getName()) || "Box".equals(event.getNodeB().getName())) {
+            if ("bullet".equals(event.getNodeA().getName()) || "bullet".equals(event.getNodeB().getName())) {
+                if ("bullet".equals(event.getNodeB().getName())) {
+                    if (rootNode.getChild("bullet") != null) {
+                        rootNode.detachChildNamed("bullet");
+                    }
+                }
+            }
+        }
+        if ("labDoor".equals(event.getNodeA().getName()) || "labDoor".equals(event.getNodeB().getName())) {
+            if ("bullet".equals(event.getNodeA().getName()) || "bullet".equals(event.getNodeB().getName())) {
+                if ("bullet".equals(event.getNodeB().getName())) {
+                    if (rootNode.getChild("bullet") != null) {
+                        rootNode.detachChildNamed("bullet");
+                        openDoor();
+                    }
+                }
+            }
+        }
+    }
+
+    private void initCrosshairs() {
+        guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+        BitmapText ch = new BitmapText(guiFont, false);
+        ch.setSize(guiFont.getCharSet().getRenderedSize() * 2);
+        ch.setText("+"); // crosshairs
+        ch.setLocalTranslation( // center
+                settings.getWidth() / 2 - ch.getLineWidth() / 2, settings.getHeight() / 2 + ch.getLineHeight() / 2, 0);
+        guiNode.attachChild(ch);
     }
 
     private void createLevel() {
@@ -269,12 +417,19 @@ public class Main extends SimpleApplication implements ActionListener {
         rootNode.attachChild(geom9);
 
         // Labyrinth:
-        Box wall10 = new Box(Vector3f.ZERO, 0.1f, 4, 50);
+        Box wall10 = new Box(Vector3f.ZERO, 0.1f, 4, 35);
         Geometry geom10 = new Geometry("Box", wall10);
         geom10.setMaterial(mat1);
-        Vector3f wallPlacement10 = new Vector3f(-60.0f, 4.0f, -50.0f);
+        Vector3f wallPlacement10 = new Vector3f(-60.0f, 4.0f, -65.0f);
         geom10.setLocalTranslation(wallPlacement10);
         rootNode.attachChild(geom10);
+        
+        Box wall16 = new Box(Vector3f.ZERO, 0.1f, 4, 10);
+        Geometry geom16 = new Geometry("Box", wall16);
+        geom16.setMaterial(mat1);
+        Vector3f wallPlacement16 = new Vector3f(-60.0f, 4.0f, -10.0f);
+        geom16.setLocalTranslation(wallPlacement16);
+        rootNode.attachChild(geom16);
 
         Box wall11 = new Box(Vector3f.ZERO, 0.1f, 4, 30);
         Geometry geom11 = new Geometry("Box", wall11);
@@ -313,8 +468,20 @@ public class Main extends SimpleApplication implements ActionListener {
         geom15.setLocalTranslation(wallPlacement15);
         rootNode.attachChild(geom15);
 
+        // Labyrinth door
+        Box doorBox = new Box(Vector3f.ZERO, 0.1f, 4, 5);
+        labDoorGeo = new Geometry("labDoor", doorBox);
+        Material doorMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        doorMat.setColor("Color", ColorRGBA.Blue);
+        labDoorGeo.setMaterial(doorMat);
+        Vector3f doorPlacement1 = new Vector3f(-60.0f, 4.0f, -25.0f);
+        labDoorGeo.setLocalTranslation(doorPlacement1);
+        doors.attachChild(labDoorGeo);
+        
         Spatial terrainGeo = assetManager.loadModel("Scenes/Level1.j3o");
         terrainGeo.setLocalScale(2f);
+
+        spawnEnemy();
 
         // We set up collision detection for the scene by creating a
         // compound collision shape and a static RigidBodyControl with mass zero.
@@ -366,6 +533,8 @@ public class Main extends SimpleApplication implements ActionListener {
         bulletAppState.getPhysicsSpace().add(boxPhy);
         boxPhy = new RigidBodyControl(0f);
         geom15.addControl(boxPhy);
+        bulletAppState.getPhysicsSpace().add(boxPhy);
+        labDoorGeo.addControl(boxPhy);
         bulletAppState.getPhysicsSpace().add(boxPhy);
         rootNode.attachChild(terrainGeo);
         bulletAppState.getPhysicsSpace().add(landscape);
