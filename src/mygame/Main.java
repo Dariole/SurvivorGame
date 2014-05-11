@@ -58,13 +58,20 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
     //private Material bulletMat;
     private static final Sphere ballMesh = new Sphere(32, 32, 0.10f, true, false);
     Timer myTimer = getTimer();
+    long doorCloseTimer;
+    long enemyRespawnTimer;
     private int score = 0;
     private BitmapText scoreText;
     AudioNode audioGun;
     AudioNode audioPain;
+    AudioNode audioDoorClose;
+    AudioNode audioDoorOpen;
+    AudioNode audioBulletHitWall;
     Geometry labDoorGeo;
     private Node doors;
-    
+    boolean isDoorOpen;
+    boolean isEnemyDead;
+
     public static void main(String[] args) {
         Main app = new Main();
         app.start();
@@ -97,12 +104,21 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Sound init
         initGunSound();
         initPainSound();
-        
+        initDoorCloseSound();
+        initDoorOpenSound();
+        initBulletHitWallSound();
+
+        // Booleans
+        isDoorOpen = false;
+
         // init door node
         doors = new Node("Doors");
         rootNode.attachChild(doors);
         playerNode = new Node("the player");
-        playerNode.setLocalTranslation(new Vector3f(-10, 6, -10));
+        playerNode.setLocalTranslation(new Vector3f(-10, 1, -10));
+        Quaternion rotate180 = new Quaternion();
+        rotate180.fromAngleAxis(FastMath.PI, new Vector3f(0,1,0));
+        playerNode.setLocalRotation(rotate180);
         rootNode.attachChild(playerNode);
         player = new BetterCharacterControl(1.5f, 4, 30f);
         player.setJumpForce(new Vector3f(0, 300, 0));
@@ -118,7 +134,6 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         playerNode.attachChild(camNode);
         camNode.setEnabled(true);
         flyCam.setEnabled(false);
-
         createLevel();
         bulletAppState.getPhysicsSpace().add(player);
     }
@@ -150,14 +165,13 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                 new KeyTrigger(KeyInput.KEY_RIGHT));
         inputManager.addMapping("Shoot",
                 new KeyTrigger(KeyInput.KEY_LCONTROL));
-        inputManager.addMapping("Use", 
+        inputManager.addMapping("Use",
                 new KeyTrigger(KeyInput.KEY_SPACE));
         inputManager.addListener(this, "Shoot");
         inputManager.addListener(this, "Rotate Left",
                 "Rotate Right");
         inputManager.addListener(this, "Forward", "Back");
         inputManager.addListener(this, "Use");
-
 
         inputManager.setCursorVisible(true);
     }
@@ -194,7 +208,20 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
             rotateR.multLocal(viewDirection);
         }
         player.setViewDirection(viewDirection); // turn!
-
+        if (isDoorOpen) {
+            if (System.currentTimeMillis() - doorCloseTimer > 3000) {
+                doorCloseTimer = System.currentTimeMillis();
+                closeDoor();
+                isDoorOpen = false;
+            }
+        }
+        if (isEnemyDead) {
+            if (System.currentTimeMillis() - enemyRespawnTimer > 3000) {
+                enemyRespawnTimer = System.currentTimeMillis();
+                spawnEnemy();
+                isEnemyDead = false;
+            }
+        }
 
     }
 
@@ -222,9 +249,9 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                 float dist = results.getCollision(i).getDistance();
                 Vector3f pt = results.getCollision(i).getContactPoint();
                 String hit = results.getCollision(i).getGeometry().getName();
-                if (dist <= 10.0f){
+                if (dist <= 10.0f) {
                     System.out.println("use2");
-                    if (hit.equals("labDoor")){
+                    if (hit.equals("labDoor")) {
                         System.out.println("use3");
                         openDoor();
                     }
@@ -239,6 +266,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
     }
 
     public void spawnEnemy() {
+        isEnemyDead = false;
         Box enemyBox = new Box(Vector3f.ZERO, 1, 3, 1);
         enemyGeo = new Geometry("enemy", enemyBox);
         Material enemyMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
@@ -271,21 +299,45 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         bulletAppState.getPhysicsSpace().addCollisionListener(this);
     }
 
-    private void initGunSound(){
-    audioGun = new AudioNode(assetManager, "Sounds/gun_sound.wav");
-    audioGun.setPositional(false);
-    audioGun.setLooping(false);
-    audioGun.setVolume(2);
-    rootNode.attachChild(audioGun);
+    private void initGunSound() {
+        audioGun = new AudioNode(assetManager, "Sounds/gun_sound.wav");
+        audioGun.setPositional(false);
+        audioGun.setLooping(false);
+        audioGun.setVolume(2);
+        rootNode.attachChild(audioGun);
     }
-    private void initPainSound(){
-    audioPain = new AudioNode(assetManager, "Sounds/pain_sound.wav");
-    audioPain.setPositional(false);
-    audioPain.setLooping(false);
-    audioPain.setVolume(2);
-    rootNode.attachChild(audioPain);
+
+    private void initPainSound() {
+        audioPain = new AudioNode(assetManager, "Sounds/pain_sound.wav");
+        audioPain.setPositional(false);
+        audioPain.setLooping(false);
+        audioPain.setVolume(2);
+        rootNode.attachChild(audioPain);
+    }
+
+    private void initDoorCloseSound() {
+        audioDoorClose = new AudioNode(assetManager, "Sounds/close_door_sound.wav");
+        audioDoorClose.setPositional(false);
+        audioDoorClose.setLooping(false);
+        audioDoorClose.setVolume(2);
+        rootNode.attachChild(audioDoorClose);
+    }
+
+    private void initDoorOpenSound() {
+        audioDoorOpen = new AudioNode(assetManager, "Sounds/open_door_sound.wav");
+        audioDoorOpen.setPositional(false);
+        audioDoorOpen.setLooping(false);
+        audioDoorOpen.setVolume(2);
+        rootNode.attachChild(audioDoorOpen);
     }
     
+    private void initBulletHitWallSound() {
+        audioBulletHitWall = new AudioNode(assetManager, "Sounds/bullet_hit_wall_sound.wav");
+        audioBulletHitWall.setPositional(false);
+        audioBulletHitWall.setLooping(false);
+        audioBulletHitWall.setVolume(2);
+        rootNode.attachChild(audioBulletHitWall);
+    }
     
     private void showScore() {
         scoreText = new BitmapText(guiFont, false);
@@ -296,12 +348,22 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         guiNode.attachChild(scoreText);
     }
 
-    private void openDoor(){
+    private void openDoor() {
+        doorCloseTimer = System.currentTimeMillis();
+        isDoorOpen = true;
+        audioDoorOpen.playInstance();
         labDoorGeo.setLocalTranslation(new Vector3f(-60.0f, 12.0f, -25.0f));
         //rootNode.detachChildNamed("labDoor");
         bulletAppState.getPhysicsSpace().remove(labDoorGeo);
     }
-    
+
+    private void closeDoor() {
+        labDoorGeo.setLocalTranslation(new Vector3f(-60.0f, 4.0f, -25.0f));
+        //rootNode.detachChildNamed("labDoor");
+        bulletAppState.getPhysicsSpace().add(labDoorGeo);
+        audioDoorClose.playInstance();
+    }
+
     public void collision(PhysicsCollisionEvent event) {
         if ("enemy".equals(event.getNodeA().getName()) || "enemy".equals(event.getNodeB().getName())) {
             if ("bullet".equals(event.getNodeA().getName()) || "bullet".equals(event.getNodeB().getName())) {
@@ -309,6 +371,9 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                     if (rootNode.getChild("bullet") != null) {
                         rootNode.detachChildNamed("bullet");
                         rootNode.detachChildNamed("enemy");
+                        bulletAppState.getPhysicsSpace().remove(enemyGeo);
+                        enemyRespawnTimer = System.currentTimeMillis();
+                        isEnemyDead = true;
                         audioPain.playInstance();
                         score++;
                         System.out.println(score);
@@ -323,6 +388,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                 if ("bullet".equals(event.getNodeB().getName())) {
                     if (rootNode.getChild("bullet") != null) {
                         rootNode.detachChildNamed("bullet");
+                        audioBulletHitWall.playInstance();
                     }
                 }
             }
@@ -332,7 +398,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                 if ("bullet".equals(event.getNodeB().getName())) {
                     if (rootNode.getChild("bullet") != null) {
                         rootNode.detachChildNamed("bullet");
-                        openDoor();
+                        audioBulletHitWall.playInstance();
                     }
                 }
             }
@@ -423,7 +489,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         Vector3f wallPlacement10 = new Vector3f(-60.0f, 4.0f, -65.0f);
         geom10.setLocalTranslation(wallPlacement10);
         rootNode.attachChild(geom10);
-        
+
         Box wall16 = new Box(Vector3f.ZERO, 0.1f, 4, 10);
         Geometry geom16 = new Geometry("Box", wall16);
         geom16.setMaterial(mat1);
@@ -477,7 +543,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         Vector3f doorPlacement1 = new Vector3f(-60.0f, 4.0f, -25.0f);
         labDoorGeo.setLocalTranslation(doorPlacement1);
         doors.attachChild(labDoorGeo);
-        
+
         Spatial terrainGeo = assetManager.loadModel("Scenes/Level1.j3o");
         terrainGeo.setLocalScale(2f);
 
