@@ -75,6 +75,9 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
     AudioNode audioDoorOpen;
     AudioNode audioBulletHitWall;
     AudioNode audioFootsteps;
+    AudioNode audioPoint;
+    AudioNode audioHealth;
+    AudioNode audioAmbient;
     Geometry labDoorGeo;
     Geometry secDoorGeo;
     Geometry buttonGeo;
@@ -122,7 +125,13 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         initDoorOpenSound();
         initBulletHitWallSound();
         initFootstepsSound();
-
+        initPointSound();
+        initHealthSound();
+        initAmbientSound();
+        
+        // Sound
+        audioAmbient.play();
+        
         // Booleans
         isDoorOpen = false;
         isSecretDoorOpen = false;
@@ -368,6 +377,30 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         rootNode.attachChild(audioGun);
     }
 
+    private void initPointSound() {
+        audioPoint = new AudioNode(assetManager, "Sounds/point_sound.wav");
+        audioPoint.setPositional(false);
+        audioPoint.setLooping(false);
+        audioPoint.setVolume(2);
+        rootNode.attachChild(audioPoint);
+    }
+    
+    private void initAmbientSound() {
+        audioAmbient = new AudioNode(assetManager, "Sounds/wind_ambience_sound.wav");
+        audioAmbient.setPositional(false);
+        audioAmbient.setLooping(true);
+        audioAmbient.setVolume(2);
+        rootNode.attachChild(audioAmbient);
+    }
+    
+    private void initHealthSound() {
+        audioHealth = new AudioNode(assetManager, "Sounds/health_sound.wav");
+        audioHealth.setPositional(false);
+        audioHealth.setLooping(false);
+        audioHealth.setVolume(2);
+        rootNode.attachChild(audioHealth);
+    }
+    
     private void initFootstepsSound() {
         audioFootsteps = new AudioNode(assetManager, "Sounds/footsteps_sound.wav");
         audioFootsteps.setPositional(false);
@@ -488,6 +521,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
             if ("the player".equals(event.getNodeA().getName()) || "the player".equals(event.getNodeB().getName())) {
                 if (rootNode.getChild("points") != null) {
                     rootNode.detachChildNamed("points");
+                    audioPoint.playInstance();
                     score += 50;
                     scoreText.setText("Score: " + score);
                 }
@@ -499,6 +533,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                 if (rootNode.getChild("life") != null) {
                     rootNode.detachChildNamed("life");
                     health += 1;
+                    audioHealth.playInstance();
                     healthText.setText("Health: " + health);
                 }
             }
