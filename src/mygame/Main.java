@@ -66,7 +66,9 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
     long enemyRespawnTimer;
     long enemyShootTimer;
     private int score = 0;
+    private int health = 3;
     private BitmapText scoreText;
+    private BitmapText healthText;
     AudioNode audioGun;
     AudioNode audioPain;
     AudioNode audioDoorClose;
@@ -78,6 +80,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
     Geometry buttonGeo;
     Geometry buttonGeo2;
     Geometry pointsGeo;
+    Geometry lifeGeo;
     private Node usables;
     boolean isDoorOpen;
     boolean isSecretDoorOpen;
@@ -110,7 +113,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         setUpLight();
 
         // Adding score to GUI
-        showScore();
+        showHud();
 
         // Sound init
         initGunSound();
@@ -405,13 +408,19 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         rootNode.attachChild(audioBulletHitWall);
     }
 
-    private void showScore() {
+    private void showHud() {
         scoreText = new BitmapText(guiFont, false);
         scoreText.setSize(guiFont.getCharSet().getRenderedSize() * 2);
         scoreText.setText("Score: " + score);
-        scoreText.setLocalTranslation( // center
+        scoreText.setLocalTranslation( // right
                 (settings.getWidth() - scoreText.getLineWidth() / 2) - 100, (settings.getHeight() + scoreText.getLineHeight() / 2) - 25, 0);
         guiNode.attachChild(scoreText);
+        healthText = new BitmapText(guiFont, false);
+        healthText.setSize(guiFont.getCharSet().getRenderedSize() * 2);
+        healthText.setText("Health: " + health);
+        healthText.setLocalTranslation( // left
+                25, (settings.getHeight() + scoreText.getLineHeight() / 2)-25, 0);
+        guiNode.attachChild(healthText);
     }
 
     private void openDoor(String doorName) {
@@ -481,6 +490,16 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                     rootNode.detachChildNamed("points");
                     score += 50;
                     scoreText.setText("Score: " + score);
+                }
+            }
+        }
+        
+        if ("life".equals(event.getNodeA().getName()) || "life".equals(event.getNodeB().getName())) {
+            if ("the player".equals(event.getNodeA().getName()) || "the player".equals(event.getNodeB().getName())) {
+                if (rootNode.getChild("life") != null) {
+                    rootNode.detachChildNamed("life");
+                    health += 1;
+                    healthText.setText("Health: " + health);
                 }
             }
         }
@@ -567,7 +586,6 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         geom8.setLocalTranslation(wallPlacement8);
         rootNode.attachChild(geom8);
 
-
         Box points = new Box(Vector3f.ZERO, 0.5f, 0.5f, 0.5f);
         pointsGeo = new Geometry("points", points);
         Material pointMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
@@ -579,6 +597,21 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         BoxCollisionShape pointShape = new BoxCollisionShape(new Vector3f(0.5f, 0.5f, 0.5f));
         bulletPhy = new RigidBodyControl(pointShape, 10f);
         pointsGeo.addControl(bulletPhy);
+        bulletAppState.getPhysicsSpace().add(bulletPhy);
+        bulletPhy.setGravity(new Vector3f(0f, 0f, 0f));
+        bulletAppState.getPhysicsSpace().addCollisionListener(this);
+        
+        Box life = new Box(Vector3f.ZERO, 0.5f, 0.5f, 0.5f);
+        lifeGeo = new Geometry("life", life);
+        Material lifeMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        lifeMat.setColor("Color", ColorRGBA.Red);
+        lifeGeo.setMaterial(lifeMat);
+        Vector3f healthPlacement = new Vector3f(-35.0f, 1.0f, -85.0f);
+        lifeGeo.setLocalTranslation(healthPlacement);
+        rootNode.attachChild(lifeGeo);
+        BoxCollisionShape lifeShape = new BoxCollisionShape(new Vector3f(0.5f, 0.5f, 0.5f));
+        bulletPhy = new RigidBodyControl(lifeShape, 10f);
+        lifeGeo.addControl(bulletPhy);
         bulletAppState.getPhysicsSpace().add(bulletPhy);
         bulletPhy.setGravity(new Vector3f(0f, 0f, 0f));
         bulletAppState.getPhysicsSpace().addCollisionListener(this);
