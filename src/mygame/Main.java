@@ -374,7 +374,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
 
     public void spawnEnemy() {
         isEnemyDead = false;
-        Box enemyBox = new Box(Vector3f.ZERO, 1, 2.5f, 0.1f);
+        Box enemyBox = new Box(Vector3f.ZERO, 1, 2.5f, 0.5f);
         enemyGeo = new Geometry("enemy", enemyBox);
         Material enemyMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         enemyMat.setTexture("ColorMap", assetManager.loadTexture("Textures/Enemy.png"));
