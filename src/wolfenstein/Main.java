@@ -34,7 +34,6 @@ import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.system.AppSettings;
 import com.jme3.system.Timer;
-import com.sun.xml.internal.ws.api.config.management.policy.ManagementAssertion;
 import java.util.Random;
 
 /**
