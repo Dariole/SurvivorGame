@@ -1,4 +1,4 @@
-package mygame;
+package wolfenstein;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.audio.AudioNode;
@@ -32,7 +32,9 @@ import com.jme3.scene.Spatial;
 import com.jme3.scene.control.CameraControl;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
+import com.jme3.system.AppSettings;
 import com.jme3.system.Timer;
+import com.sun.xml.internal.ws.api.config.management.policy.ManagementAssertion;
 import java.util.Random;
 
 /**
@@ -71,6 +73,9 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
 
     public static void main(String[] args) {
         Main app = new Main();
+        AppSettings settings = new AppSettings(false);
+        settings.setSettingsDialogImage("Interface/splashscreen.jpg");
+        app.setSettings(settings);
         app.start();
     }
 
@@ -374,7 +379,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
 
     public void spawnEnemy() {
         isEnemyDead = false;
-        Box enemyBox = new Box(Vector3f.ZERO, 1, 2.5f, 0.5f);
+        Box enemyBox = new Box(Vector3f.ZERO, 1, 2.5f, 1f);
         enemyGeo = new Geometry("enemy", enemyBox);
         Material enemyMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         enemyMat.setTexture("ColorMap", assetManager.loadTexture("Textures/Enemy.png"));
