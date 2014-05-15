@@ -33,6 +33,7 @@ import com.jme3.scene.control.CameraControl;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.system.Timer;
+import java.util.Random;
 
 /**
  * test
@@ -66,6 +67,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
     private AmbientLight al;
     private DirectionalLight dl;
     private int test = 0;
+    private Vector3f[] spawnLoc = {new Vector3f(-30, 3, -30), new Vector3f(-70, 3, -10), new Vector3f(-10.0f, 3, -70), new Vector3f(-95, 3, -35)};
 
     public static void main(String[] args) {
         Main app = new Main();
@@ -92,7 +94,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
 
         // init survive timer
         timeSurvived = System.currentTimeMillis();
-        
+
         // init gui
         score = 0;
         health = 3;
@@ -114,8 +116,6 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // init door node
         usables = new Node("Doors");
         rootNode.attachChild(usables);
-
-
 
         // init player
         playerNode = new Node("the player");
@@ -246,6 +246,8 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
             }
 
             enemyGeo.lookAt(new Vector3f(playerNode.getLocalTranslation().x, 3, playerNode.getLocalTranslation().z), Vector3f.UNIT_Y);
+            lifeGeo.lookAt(new Vector3f(playerNode.getLocalTranslation().x, 3, playerNode.getLocalTranslation().z), Vector3f.UNIT_Y);
+            pointsGeo.lookAt(new Vector3f(playerNode.getLocalTranslation().x, 3, playerNode.getLocalTranslation().z), Vector3f.UNIT_Y);
 
             if (System.currentTimeMillis() - enemyShootTimer > 5000 && !isEnemyDead) {
                 enemyShoot();
@@ -325,6 +327,8 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         playerNode.detachAllChildren();
         usables.detachAllChildren();
         rootNode.detachAllChildren();
+        audioFootsteps.stop();
+        audioAmbient.stop();
         audioAmbient.detachAllChildren();
         audioBulletHitWall.detachAllChildren();
         audioDoorClose.detachAllChildren();
@@ -370,13 +374,13 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
 
     public void spawnEnemy() {
         isEnemyDead = false;
-        Box enemyBox = new Box(Vector3f.ZERO, 1, 2.5f, 1);
+        Box enemyBox = new Box(Vector3f.ZERO, 1, 2.5f, 0.1f);
         enemyGeo = new Geometry("enemy", enemyBox);
         Material enemyMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        enemyMat.setColor("Color", ColorRGBA.Red);
+        enemyMat.setTexture("ColorMap", assetManager.loadTexture("Textures/Enemy.png"));
         enemyGeo.setMaterial(enemyMat);
-        Vector3f enemySpawnPosition = new Vector3f(-30, 3, -30);
-        enemyGeo.setLocalTranslation(enemySpawnPosition);
+        Random rand = new Random();
+        enemyGeo.setLocalTranslation(spawnLoc[rand.nextInt(4)]);
         enemy = new RigidBodyControl(0);
         enemyGeo.addControl(enemy);
         rootNode.attachChild(enemyGeo);
@@ -395,7 +399,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         audioGun.playInstance();
         SphereCollisionShape sceneShape = new SphereCollisionShape(0.25f);
         bulletPhy = new RigidBodyControl(sceneShape, 10f);
-        bulletPhy.applyImpulse(cam.getDirection().mult(400), cam.getDirection());
+        bulletPhy.applyImpulse(cam.getDirection().mult(500), cam.getDirection());
         bulletGeo.addControl(bulletPhy);
         bulletAppState.getPhysicsSpace().add(bulletPhy);
         bulletPhy.setGravity(new Vector3f(0f, 0f, 0f));
@@ -423,7 +427,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         //audioGun.playInstance();
         SphereCollisionShape sceneShape = new SphereCollisionShape(0.25f);
         bulletPhy = new RigidBodyControl(sceneShape, 10f);
-        bulletPhy.applyImpulse(modelForwardDir.mult(200), modelForwardDir);
+        bulletPhy.applyImpulse(modelForwardDir.mult(350), modelForwardDir);
         enemyBulletGeo.addControl(bulletPhy);
         bulletAppState.getPhysicsSpace().add(bulletPhy);
         bulletPhy.setGravity(new Vector3f(0f, 0f, 0f));
@@ -529,15 +533,15 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         guiNode.attachChild(healthText);
     }
 
-    private void showGameOverText(){
+    private void showGameOverText() {
         gameOverText = new BitmapText(guiFont, false);
         gameOverText.setSize(guiFont.getCharSet().getRenderedSize() * 2);
-        gameOverText.setText("GAME OVER!\nYour score: " + score + "\nYou survived for: " + (((System.currentTimeMillis() - timeSurvived) / 1000)/60) + ":" + (((System.currentTimeMillis() - timeSurvived) / 1000)%60) + "\nPress 'R' to try again!");
+        gameOverText.setText("GAME OVER!\nYour score: " + score + "\nYou survived for: " + (((System.currentTimeMillis() - timeSurvived) / 1000) / 60) + ":" + (((System.currentTimeMillis() - timeSurvived) / 1000) % 60) + "\nPress 'R' to try again!");
         gameOverText.setLocalTranslation( // right
-                settings.getWidth() / 2 - gameOverText.getLineWidth() / 2, settings.getHeight() / 2 + gameOverText.getHeight()/ 2, 0);
+                settings.getWidth() / 2 - gameOverText.getLineWidth() / 2, settings.getHeight() / 2 + gameOverText.getHeight() / 2, 0);
         guiNode.attachChild(gameOverText);
     }
-    
+
     private void openDoor(String doorName) {
         if (doorName.equals("labDoor")) {
             doorCloseTimer = System.currentTimeMillis();
@@ -581,7 +585,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
                         enemyRespawnTimer = System.currentTimeMillis();
                         isEnemyDead = true;
                         audioPain.playInstance();
-                        score++;
+                        score += 5;
                         System.out.println(score);
                         scoreText.setText("Score: " + score);
                     }
@@ -677,13 +681,16 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         Geometry geom2 = new Geometry("Box", wall2);
         Geometry geom3 = new Geometry("Box", wall3);
         Geometry geom4 = new Geometry("Box", wall4);
-        Material mat1 = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat1.setColor("Color", ColorRGBA.Gray);
-        mat1.setTexture("ColorMap", assetManager.loadTexture("Interface/Wall.jpg"));
-        geom1.setMaterial(mat1);
-        geom2.setMaterial(mat1);
-        geom3.setMaterial(mat1);
-        geom4.setMaterial(mat1);
+        Material matLong = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        matLong.setColor("Color", ColorRGBA.Gray);
+        matLong.setTexture("ColorMap", assetManager.loadTexture("Textures/LongWall.png"));
+        Material matSmall = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        matSmall.setColor("Color", ColorRGBA.Gray);
+        matSmall.setTexture("ColorMap", assetManager.loadTexture("Textures/LongWall.png"));
+        geom1.setMaterial(matLong);
+        geom2.setMaterial(matLong);
+        geom3.setMaterial(matLong);
+        geom4.setMaterial(matLong);
         Vector3f wallPlacement1 = new Vector3f(0.0f, 4.0f, -50.0f);
         Vector3f wallPlacement2 = new Vector3f(-100.0f, 4.0f, -50.0f);
         Vector3f wallPlacement3 = new Vector3f(-50.0f, 4.0f, -100.0f);
@@ -700,21 +707,21 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Start area:
         Box wall5 = new Box(Vector3f.ZERO, 0.1f, 4, 20);
         Geometry geom5 = new Geometry("Box", wall5);
-        geom5.setMaterial(mat1);
+        geom5.setMaterial(matLong);
         Vector3f wallPlacement5 = new Vector3f(-20.0f, 4.0f, -20.0f);
         geom5.setLocalTranslation(wallPlacement5);
         rootNode.attachChild(geom5);
 
         Box wall6 = new Box(Vector3f.ZERO, 20, 4, 0.1f);
         Geometry geom6 = new Geometry("Box", wall6);
-        geom6.setMaterial(mat1);
+        geom6.setMaterial(matLong);
         Vector3f wallPlacement6 = new Vector3f(-20.0f, 4.0f, -60.0f);
         geom6.setLocalTranslation(wallPlacement6);
         rootNode.attachChild(geom6);
 
         Box wall7 = new Box(Vector3f.ZERO, 10, 4, 0.1f);
         Geometry geom7 = new Geometry("Box", wall7);
-        geom7.setMaterial(mat1);
+        geom7.setMaterial(matSmall);
         Vector3f wallPlacement7 = new Vector3f(-30.0f, 4.0f, -40.0f);
         geom7.setLocalTranslation(wallPlacement7);
         rootNode.attachChild(geom7);
@@ -722,35 +729,35 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Secret room
         Box wall8 = new Box(Vector3f.ZERO, 0.1f, 4, 10);
         Geometry geom8 = new Geometry("Box", wall8);
-        geom8.setMaterial(mat1);
+        geom8.setMaterial(matSmall);
         Vector3f wallPlacement8 = new Vector3f(-40.0f, 4.0f, -90.0f);
         geom8.setLocalTranslation(wallPlacement8);
         rootNode.attachChild(geom8);
 
-        Box points = new Box(Vector3f.ZERO, 0.5f, 0.5f, 0.5f);
+        Box points = new Box(Vector3f.ZERO, 1f, 1f, 0.1f);
         pointsGeo = new Geometry("points", points);
         Material pointMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        pointMat.setColor("Color", ColorRGBA.Yellow);
+        pointMat.setTexture("ColorMap", assetManager.loadTexture("Textures/Points.png"));
         pointsGeo.setMaterial(pointMat);
         Vector3f pointPlacement = new Vector3f(-35.0f, 1.0f, -95.0f);
         pointsGeo.setLocalTranslation(pointPlacement);
         rootNode.attachChild(pointsGeo);
-        BoxCollisionShape pointShape = new BoxCollisionShape(new Vector3f(0.5f, 0.5f, 0.5f));
+        BoxCollisionShape pointShape = new BoxCollisionShape(new Vector3f(1f, 1f, 0.5f));
         bulletPhy = new RigidBodyControl(pointShape, 0);
         pointsGeo.addControl(bulletPhy);
         bulletAppState.getPhysicsSpace().add(bulletPhy);
         bulletPhy.setGravity(new Vector3f(0f, 0f, 0f));
         bulletAppState.getPhysicsSpace().addCollisionListener(this);
 
-        Box life = new Box(Vector3f.ZERO, 0.5f, 0.5f, 0.5f);
+        Box life = new Box(Vector3f.ZERO, 1f, 0.6f, 0.1f);
         lifeGeo = new Geometry("life", life);
         Material lifeMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        lifeMat.setColor("Color", ColorRGBA.Red);
+        lifeMat.setTexture("ColorMap", assetManager.loadTexture("Textures/Health.png"));
         lifeGeo.setMaterial(lifeMat);
-        Vector3f healthPlacement = new Vector3f(-35.0f, 1.0f, -85.0f);
+        Vector3f healthPlacement = new Vector3f(-35.0f, 0.6f, -85.0f);
         lifeGeo.setLocalTranslation(healthPlacement);
         rootNode.attachChild(lifeGeo);
-        BoxCollisionShape lifeShape = new BoxCollisionShape(new Vector3f(0.5f, 0.5f, 0.5f));
+        BoxCollisionShape lifeShape = new BoxCollisionShape(new Vector3f(1f, 0.6f, 0.5f));
         bulletPhy = new RigidBodyControl(lifeShape, 0);
         lifeGeo.addControl(bulletPhy);
         bulletAppState.getPhysicsSpace().add(bulletPhy);
@@ -760,7 +767,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         Box wall9 = new Box(Vector3f.ZERO, 5, 4, 0.1f);
         secDoorGeo = new Geometry("secDoor", wall9);
         Material secretDoorMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        secretDoorMat.setColor("Color", ColorRGBA.Blue);
+        secretDoorMat.setTexture("ColorMap", assetManager.loadTexture("Textures/SecDoor.png"));
         secDoorGeo.setMaterial(secretDoorMat);
         Vector3f wallPlacement9 = new Vector3f(-5.0f, 4.0f, -80.0f);
         secDoorGeo.setLocalTranslation(wallPlacement9);
@@ -768,7 +775,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
 
         Box wall17 = new Box(Vector3f.ZERO, 15, 4, 0.1f);
         Geometry geom17 = new Geometry("Box", wall17);
-        geom17.setMaterial(mat1);
+        geom17.setMaterial(matSmall);
         Vector3f wallPlacement17 = new Vector3f(-25.0f, 4.0f, -80.0f);
         geom17.setLocalTranslation(wallPlacement17);
         usables.attachChild(geom17);
@@ -776,9 +783,9 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Secret button
         Box button2 = new Box(Vector3f.ZERO, 1, 1, 0.1f);
         buttonGeo2 = new Geometry("button", button2);
-        Material red = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        secretDoorMat.setColor("Color", ColorRGBA.Red);
-        buttonGeo2.setMaterial(red);
+        Material buttonMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        buttonMat.setTexture("ColorMap", assetManager.loadTexture("Textures/Button.png"));
+        buttonGeo2.setMaterial(buttonMat);
         Vector3f buttonPlacement2 = new Vector3f(-25.0f, 4.0f, -80.1f);
         buttonGeo2.setLocalTranslation(buttonPlacement2);
         usables.attachChild(buttonGeo2);
@@ -786,14 +793,14 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Labyrinth:
         Box wall10 = new Box(Vector3f.ZERO, 0.1f, 4, 35);
         Geometry geom10 = new Geometry("Box", wall10);
-        geom10.setMaterial(mat1);
+        geom10.setMaterial(matLong);
         Vector3f wallPlacement10 = new Vector3f(-60.0f, 4.0f, -65.0f);
         geom10.setLocalTranslation(wallPlacement10);
         rootNode.attachChild(geom10);
 
         Box wall16 = new Box(Vector3f.ZERO, 0.1f, 4, 10);
         Geometry geom16 = new Geometry("Box", wall16);
-        geom16.setMaterial(mat1);
+        geom16.setMaterial(matSmall);
         Vector3f wallPlacement16 = new Vector3f(-60.0f, 4.0f, -10.0f);
         geom16.setLocalTranslation(wallPlacement16);
         usables.attachChild(geom16);
@@ -801,22 +808,21 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Secret button
         Box button = new Box(Vector3f.ZERO, 0.1f, 1, 1);
         buttonGeo = new Geometry("button", button);
-        red.setColor("Color", ColorRGBA.Red);
-        buttonGeo.setMaterial(red);
+        buttonGeo.setMaterial(buttonMat);
         Vector3f buttonPlacement = new Vector3f(-60.1f, 4.0f, -10.0f);
         buttonGeo.setLocalTranslation(buttonPlacement);
         usables.attachChild(buttonGeo);
 
         Box wall11 = new Box(Vector3f.ZERO, 0.1f, 4, 30);
         Geometry geom11 = new Geometry("Box", wall11);
-        geom11.setMaterial(mat1);
+        geom11.setMaterial(matLong);
         Vector3f wallPlacement11 = new Vector3f(-70.0f, 4.0f, -50.0f);
         geom11.setLocalTranslation(wallPlacement11);
         rootNode.attachChild(geom11);
 
         Box wall12 = new Box(Vector3f.ZERO, 0.1f, 4, 25);
         Geometry geom12 = new Geometry("Box", wall12);
-        geom12.setMaterial(mat1);
+        geom12.setMaterial(matLong);
         Vector3f wallPlacement12 = new Vector3f(-80.0f, 4.0f, -55.0f);
         geom12.setLocalTranslation(wallPlacement12);
         rootNode.attachChild(geom12);
@@ -824,7 +830,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Button area:
         Box wall13 = new Box(Vector3f.ZERO, 15, 4, 0.1f);
         Geometry geom13 = new Geometry("Box", wall13);
-        geom13.setMaterial(mat1);
+        geom13.setMaterial(matSmall);
         Vector3f wallPlacement13 = new Vector3f(-75.0f, 4.0f, -20.0f);
         geom13.setLocalTranslation(wallPlacement13);
         rootNode.attachChild(geom13);
@@ -832,14 +838,14 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         // Merry go round:
         Box wall14 = new Box(Vector3f.ZERO, 10, 4, 0.1f);
         Geometry geom14 = new Geometry("Box", wall14);
-        geom14.setMaterial(mat1);
+        geom14.setMaterial(matSmall);
         Vector3f wallPlacement14 = new Vector3f(-90.0f, 4.0f, -30.0f);
         geom14.setLocalTranslation(wallPlacement14);
         rootNode.attachChild(geom14);
 
         Box wall15 = new Box(Vector3f.ZERO, 0.1f, 4, 20);
         Geometry geom15 = new Geometry("Box", wall15);
-        geom15.setMaterial(mat1);
+        geom15.setMaterial(matLong);
         Vector3f wallPlacement15 = new Vector3f(-90.0f, 4.0f, -60.0f);
         geom15.setLocalTranslation(wallPlacement15);
         rootNode.attachChild(geom15);
@@ -848,7 +854,7 @@ public class Main extends SimpleApplication implements ActionListener, PhysicsCo
         Box doorBox = new Box(Vector3f.ZERO, 0.1f, 4, 5);
         labDoorGeo = new Geometry("labDoor", doorBox);
         Material doorMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        doorMat.setColor("Color", ColorRGBA.Blue);
+        doorMat.setTexture("ColorMap", assetManager.loadTexture("Textures/Door.png"));
         labDoorGeo.setMaterial(doorMat);
         Vector3f doorPlacement1 = new Vector3f(-60.0f, 4.0f, -25.0f);
         labDoorGeo.setLocalTranslation(doorPlacement1);
